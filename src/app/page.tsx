@@ -1614,7 +1614,7 @@ function DriverAvailableOrders() {
                   </Button>
                 </div>
                 {user?.points < 1 && (
-                  <p className="text-xs text-red-500 text-center">معندكش نقاط كافية (لازم نقاط تكفي 10% من سعر عرضك). اشتري نقاط الأول!</p>
+                  <p className="text-xs text-red-500 text-center">معندكش نقاط كافية. اشتري نقاط الأول!</p>
                 )}
               </CardContent>
             </Card>
