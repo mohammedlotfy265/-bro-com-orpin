@@ -53,6 +53,27 @@ export async function PATCH(
         },
         data: { status: 'REJECTED' },
       });
+
+      // Deduct 10% of driver's points as commission
+      const driver = await db.user.findUnique({ where: { id: offer.driverId } });
+      if (driver && driver.points > 0) {
+        const commissionPoints = Math.max(1, Math.ceil(driver.points * 0.10));
+        const actualDeduction = Math.min(commissionPoints, driver.points);
+
+        await db.user.update({
+          where: { id: offer.driverId },
+          data: { points: { decrement: actualDeduction } },
+        });
+
+        await db.pointsTransaction.create({
+          data: {
+            userId: offer.driverId,
+            amount: -actualDeduction,
+            type: 'USAGE',
+            description: `عمولة 10% على قبول توصيل طلب #${offer.orderId.slice(-6)} (${actualDeduction} نقطة من ${driver.points})`,
+          },
+        });
+      }
     }
 
     return NextResponse.json({ offer: updatedOffer });
