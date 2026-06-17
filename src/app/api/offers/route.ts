@@ -45,14 +45,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'كل البيانات مطلوبة' }, { status: 400 });
     }
 
-    // Check if driver has enough points
+    // Check if driver has enough points for 10% commission
     const driver = await db.user.findUnique({ where: { id: driverId } });
     if (!driver) {
       return NextResponse.json({ error: 'الدليفري مش موجود' }, { status: 404 });
     }
 
-    if (driver.points < 1) {
-      return NextResponse.json({ error: 'معندكش نقاط كافية. اشتري نقاط الأول' }, { status: 400 });
+    const commissionPoints = Math.max(1, Math.ceil(driver.points * 0.10)); // minimum 1
+    if (driver.points < commissionPoints) {
+      return NextResponse.json({ error: `معندكش نقاط كافية. لازم يكون عندك على الأقل ${commissionPoints} نقطة (عمولة 10%). اشتري نقاط الأول` }, { status: 400 });
     }
 
     // Check if driver already offered on this order
@@ -69,27 +70,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'الطلب ده مش متاح' }, { status: 400 });
     }
 
-    // Create offer (1 point fee for submitting)
+    // Create offer (no deduction here - 10% deducted when shop accepts)
     const offer = await db.deliveryOffer.create({
       data: { orderId, driverId, price, status: 'PENDING' },
       include: {
         driver: { select: { id: true, name: true, phone: true } },
-      },
-    });
-
-    // Deduct 1 point as offer fee
-    await db.user.update({
-      where: { id: driverId },
-      data: { points: { decrement: 1 } },
-    });
-
-    // Record points transaction
-    await db.pointsTransaction.create({
-      data: {
-        userId: driverId,
-        amount: -1,
-        type: 'USAGE',
-        description: `رسوم عرض توصيل على طلب #${orderId.slice(-6)}`,
       },
     });
 
