@@ -1275,30 +1275,51 @@ function ShopOrders() {
                       <CircleDot className="w-3.5 h-3.5 text-blue-500" />
                       {order.offers.length} عرض من الدليفري
                     </p>
-                    <div className="space-y-2 max-h-40 overflow-y-auto">
-                      {order.offers.map((offer) => (
-                        <div key={offer.id} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
-                          <div className="flex items-center gap-2">
-                            <Truck className="w-4 h-4 text-gray-400" />
-                            <span className="text-sm">{offer.driver?.name}</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-bold text-emerald-600">{offer.price} ج.م</span>
+                    <div className="space-y-2 max-h-48 overflow-y-auto">
+                      {order.offers.map((offer) => {
+                        const driverPoints = offer.driver?.points || 0;
+                        const commission10 = driverPoints > 0 ? Math.max(1, Math.ceil(driverPoints * 0.10)) : 0;
+                        const canAfford = driverPoints >= commission10;
+                        return (
+                          <div key={offer.id} className="p-2.5 bg-gray-50 rounded-lg space-y-2">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <Truck className="w-4 h-4 text-gray-400" />
+                                <span className="text-sm font-medium">{offer.driver?.name}</span>
+                              </div>
+                              <span className="text-sm font-bold text-emerald-600">{offer.price} ج.م</span>
+                            </div>
+                            <div className="flex items-center justify-between text-xs">
+                              <div className="flex items-center gap-2">
+                                <Coins className="w-3 h-3 text-amber-500" />
+                                <span className="text-gray-600">نقاطه: <span className="font-bold">{driverPoints}</span></span>
+                                <span className="text-amber-600">→ عمولة 10%: <span className="font-bold">{commission10}</span> نقطة</span>
+                              </div>
+                              {!canAfford && driverPoints === 0 && (
+                                <Badge className="bg-red-100 text-red-700 text-xs">معندوش نقاط</Badge>
+                              )}
+                            </div>
                             {offer.status === 'PENDING' && (
-                              <div className="flex gap-1">
-                                <Button size="sm" className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700" onClick={() => handleOfferAction(offer.id, 'ACCEPTED')}>
-                                  <CheckCircle className="w-3 h-3 ml-1" /> قبول
+                              <div className="flex gap-1 pt-1">
+                                <Button
+                                  size="sm"
+                                  className={`h-7 text-xs flex-1 ${canAfford ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-gray-400 cursor-not-allowed'}`}
+                                  onClick={() => canAfford && handleOfferAction(offer.id, 'ACCEPTED')}
+                                  disabled={!canAfford}
+                                >
+                                  <CheckCircle className="w-3 h-3 ml-1" />
+                                  {canAfford ? 'قبول' : 'نقاط مش كافية'}
                                 </Button>
                                 <Button size="sm" variant="outline" className="h-7 text-xs text-red-600 border-red-200" onClick={() => handleOfferAction(offer.id, 'REJECTED')}>
                                   <XCircle className="w-3 h-3 ml-1" /> رفض
                                 </Button>
                               </div>
                             )}
-                            {offer.status === 'ACCEPTED' && <Badge className="bg-emerald-100 text-emerald-700 text-xs">مقبول</Badge>}
+                            {offer.status === 'ACCEPTED' && <Badge className="bg-emerald-100 text-emerald-700 text-xs">مقبول ✓</Badge>}
                             {offer.status === 'REJECTED' && <Badge className="bg-red-100 text-red-700 text-xs">مرفوض</Badge>}
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 )}
