@@ -113,11 +113,47 @@ function LoginView() {
     setSeeding(true);
     try {
       const data = await api.post('/api/seed', {});
-      toast({ title: 'تم!', description: 'تم إنشاء البيانات الأولية. جرّب تسجيل الدخول' });
+      if (data.message) {
+        toast({ title: 'تم!', description: data.message });
+      } else {
+        toast({ title: 'تم!', description: 'تم إنشاء البيانات الأولية. جرّب تسجيل الدخول' });
+      }
     } catch {
       toast({ title: 'خطأ', description: 'حصل خطأ', variant: 'destructive' });
     }
     setSeeding(false);
+  };
+
+  const handleQuickLogin = async (quickPhone: string, quickPassword: string) => {
+    setLoading(true);
+    try {
+      const data = await api.post('/api/auth', { phone: quickPhone, password: quickPassword });
+      if (data.error) {
+        // Try seeding first then login
+        await api.post('/api/seed', {});
+        const retryData = await api.post('/api/auth', { phone: quickPhone, password: quickPassword });
+        if (retryData.error) {
+          toast({ title: 'خطأ', description: retryData.error, variant: 'destructive' });
+        } else {
+          setUser(retryData.user);
+          const role = retryData.user.role;
+          if (role === 'ADMIN') setCurrentView('admin-dashboard');
+          else if (role === 'SHOP') setCurrentView('shop-dashboard');
+          else setCurrentView('driver-dashboard');
+          toast({ title: 'أهلاً!', description: `مرحباً ${retryData.user.name}` });
+        }
+      } else {
+        setUser(data.user);
+        const role = data.user.role;
+        if (role === 'ADMIN') setCurrentView('admin-dashboard');
+        else if (role === 'SHOP') setCurrentView('shop-dashboard');
+        else setCurrentView('driver-dashboard');
+        toast({ title: 'أهلاً!', description: `مرحباً ${data.user.name}` });
+      }
+    } catch {
+      toast({ title: 'خطأ', description: 'حصل خطأ في الاتصال', variant: 'destructive' });
+    }
+    setLoading(false);
   };
 
   return (
@@ -196,11 +232,42 @@ function LoginView() {
               >
                 {seeding ? 'جاري التجهيز...' : 'إنشاء بيانات تجريبية'}
               </Button>
-              <div className="mt-3 p-3 bg-gray-50 rounded-lg text-xs text-gray-500 space-y-1">
-                <p className="font-semibold text-gray-700">حسابات تجريبية:</p>
-                <p>أدمن: 01000000000 / admin123</p>
-                <p>شوب: 01100000000 / shop123</p>
-                <p>دليفري: 01200000000 / driver123</p>
+              <div className="mt-4 space-y-2">
+                <p className="text-xs text-gray-400 font-semibold">أو ادخل بسرعة:</p>
+                <div className="grid grid-cols-3 gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-xs border-red-200 text-red-700 hover:bg-red-50"
+                    disabled={loading}
+                    onClick={() => handleQuickLogin('01000000000', 'admin123')}
+                  >
+                    👑 أدمن
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-xs border-blue-200 text-blue-700 hover:bg-blue-50"
+                    disabled={loading}
+                    onClick={() => handleQuickLogin('01100000000', 'shop123')}
+                  >
+                    🏪 شوب
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-xs border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                    disabled={loading}
+                    onClick={() => handleQuickLogin('01200000000', 'driver123')}
+                  >
+                    🚚 دليفري
+                  </Button>
+                </div>
+                <div className="p-2 bg-gray-50 rounded-lg text-xs text-gray-400 space-y-0.5 text-right">
+                  <p>أدمن: 01000000000 / admin123</p>
+                  <p>شوب: 01100000000 / shop123</p>
+                  <p>دليفري: 01200000000 / driver123</p>
+                </div>
               </div>
             </div>
           </CardContent>
