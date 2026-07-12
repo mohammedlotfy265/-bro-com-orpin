@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -12,125 +12,147 @@ model User {
   name      String
   phone     String   @unique
   password  String
-  role      String   @default("DRIVER") // ADMIN, SHOP, DRIVER
+  role      String   @default("DRIVER")
   points    Int      @default(0)
   active    Boolean  @default(true)
   approved  Boolean  @default(false)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
-  shops           Shop[]
-  deliveryOffers  DeliveryOffer[]
-  pointsTransactions PointsTransaction[]
-  ordersCreated   Order[]      @relation("OrderCreator")
-  ordersAccepted  Order[]      @relation("AcceptedDriver")
-  paymentRequests PaymentRequest[]
+  shops               Shop[]
+  deliveryOffers      DeliveryOffer[]
+  pointsTransactions  PointsTransaction[]
+  ordersCreated       Order[]              @relation("OrderCreator")
+  ordersAccepted      Order[]              @relation("AcceptedDriver")
+  paymentRequests     PaymentRequest[]
+
+  @@map("users")
 }
 
 model Shop {
   id        String   @id @default(cuid())
   name      String
-  type      String   @default("OTHER") // PHARMACY, SUPERMARKET, RESTAURANT, OTHER
+  type      String   @default("OTHER")
   address   String
   phone     String
   active    Boolean  @default(true)
   ownerId   String
-  owner     User     @relation(fields: [ownerId], references: [id])
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
-  orders Order[]
+  owner   User      @relation(fields: [ownerId], references: [id])
+  orders  Order[]
   earnings Earning[]
+
+  @@map("shops")
 }
 
 model Order {
-  id              String   @id @default(cuid())
-  shopId          String
-  shop            Shop     @relation(fields: [shopId], references: [id])
-  description     String
-  pickupAddress   String
-  deliveryAddress String
-  status          String   @default("PENDING") // PENDING, OFFERED, ACCEPTED, PICKED_UP, DELIVERED, CANCELLED
-  deliveryFee     Float    @default(0)
-  commission      Float    @default(0) // 10% commission for admin
-  pointsCost      Int      @default(1)
-  createdById     String
-  createdBy       User     @relation("OrderCreator", fields: [createdById], references: [id])
-  acceptedDriverId String?
-  acceptedDriver   User?   @relation("AcceptedDriver", fields: [acceptedDriverId], references: [id])
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id                String   @id @default(cuid())
+  shopId            String
+  description       String
+  pickupAddress     String
+  deliveryAddress   String
+  status            String   @default("PENDING")
+  deliveryFee       Float    @default(0)
+  commission        Float    @default(0)
+  pointsCost        Int      @default(1)
+  createdById       String
+  acceptedDriverId  String?
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
 
-  offers DeliveryOffer[]
-  earning Earning?
+  shop            Shop             @relation(fields: [shopId], references: [id])
+  createdBy       User             @relation("OrderCreator", fields: [createdById], references: [id])
+  acceptedDriver  User?            @relation("AcceptedDriver", fields: [acceptedDriverId], references: [id])
+  offers          DeliveryOffer[]
+  earning         Earning?
+
+  @@map("orders")
 }
 
 model Earning {
-  id          String   @id @default(cuid())
-  orderId     String   @unique
-  order       Order    @relation(fields: [orderId], references: [id])
-  shopId      String
-  shop        Shop     @relation(fields: [shopId], references: [id])
-  deliveryFee Float    // total delivery fee
-  commission  Float    // 10% commission amount
-  driverEarning Float  // 90% that driver gets
-  createdAt   DateTime @default(now())
+  id            String   @id @default(cuid())
+  orderId       String   @unique
+  shopId        String
+  deliveryFee   Float
+  commission    Float
+  driverEarning Float
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  order Order @relation(fields: [orderId], references: [id])
+  shop  Shop  @relation(fields: [shopId], references: [id])
+
+  @@map("earnings")
 }
 
 model DeliveryOffer {
   id        String   @id @default(cuid())
   orderId   String
-  order     Order    @relation(fields: [orderId], references: [id])
   driverId  String
-  driver    User     @relation(fields: [driverId], references: [id])
   price     Float
-  status    String   @default("PENDING") // PENDING, ACCEPTED, REJECTED
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  status    String   @default("PENDING")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  order  Order @relation(fields: [orderId], references: [id])
+  driver User  @relation(fields: [driverId], references: [id])
+
+  @@map("delivery_offers")
 }
 
 model PointsTransaction {
   id          String   @id @default(cuid())
   userId      String
-  user        User     @relation(fields: [userId], references: [id])
-  amount      Int      // positive = purchase/earning, negative = usage
-  type        String   // PURCHASE, USAGE, EARNING
+  amount      Int
+  type        String
   description String
-  createdAt   DateTime @default(now())
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("points_transactions")
 }
 
 model PaymentRequest {
-  id              String   @id @default(cuid())
+  id              String    @id @default(cuid())
   userId          String
-  user            User     @relation(fields: [userId], references: [id])
-  amount          Int      // number of points requested
-  paymentMethod   String   // VODAFONE_CASH, INSTAPAY, ORANGE_CASH
-  senderPhone     String   // phone number the user sent from
-  senderName      String   // name on the payment account
-  receiptNumber   String?  // receipt/reference number from the transfer
-  status          String   @default("PENDING") // PENDING, APPROVED, REJECTED
-  adminNote       String?  // note from admin when approving/rejecting
+  amount          Int
+  paymentMethod   String
+  senderPhone     String
+  senderName      String
+  receiptNumber   String?
+  status          String    @default("PENDING")
+  adminNote       String?
   reviewedAt      DateTime?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("payment_requests")
 }
 
 model PaymentMethodSetting {
-  id            String   @id // VODAFONE_CASH, INSTAPAY, ORANGE_CASH
-  name          String   // display name (e.g. "فودافون كاش")
+  id            String   @id
+  name          String
   icon          String   @default("📱")
   color         String   @default("from-red-500 to-red-600")
   accountName   String   @default("المدير")
   accountPhone  String   @default("01000000000")
   instructions  String   @default("")
   active        Boolean  @default(true)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@map("payment_method_settings")
 }
 
 model AppSetting {
-  id        String   @id // single row id "main"
-  pointPrice Float   @default(1) // EGP per point
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id         String   @id
+  pointPrice Float    @default(1)
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@map("app_settings")
 }

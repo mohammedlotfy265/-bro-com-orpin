@@ -7,7 +7,19 @@ const globalForPrisma = globalThis as unknown as {
 export const db =
   globalForPrisma.prisma ??
   new PrismaClient({
-    log: ['query'],
+    log: process.env.NODE_ENV === 'development' ? ['query'] : [],
   })
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = db
+
+export function userPublic(u: any) {
+  return {
+    id: u.id,
+    name: u.name,
+    phone: u.phone,
+    role: u.role,
+    points: u.points,
+    active: u.active,
+    approved: u.approved,
+  }
+}
